@@ -1,5 +1,6 @@
 const User = require("../models/User");
 const MenuItem = require("../models/MenuItem");
+const { getOrderStats } = require("./orderController");
 
 // @desc    Get all registered users
 // @route   GET /api/users
@@ -42,10 +43,7 @@ const getDashboardStats = async (req, res, next) => {
   try {
     const totalMenuItems = await MenuItem.countDocuments();
     const totalUsers = await User.countDocuments({ role: "User" });
-    // Orders module is not implemented yet in this version — placeholder for future use
-    const totalOrders = 0;
-
-    res.json({ totalMenuItems, totalUsers, totalOrders });
+    res.json({ totalMenuItems, totalUsers, ...(await getOrderStats()) });
   } catch (error) {
     next(error);
   }

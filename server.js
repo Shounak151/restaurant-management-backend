@@ -9,6 +9,8 @@ const authRoutes = require("./routes/authRoutes");
 const menuRoutes = require("./routes/menuRoutes");
 const userRoutes = require("./routes/userRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const cartRoutes = require("./routes/cartRoutes");
+const orderRoutes = require("./routes/orderRoutes");
 
 // Connect to MongoDB
 connectDB();
@@ -35,6 +37,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/menu-items", menuRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/cart", cartRoutes);
+app.use("/api/orders", orderRoutes);
 
 // Error handling (must be last)
 app.use(notFound);
