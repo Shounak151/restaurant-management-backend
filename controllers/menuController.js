@@ -1,6 +1,18 @@
 const MenuItem = require("../models/MenuItem");
 const { cloudinary } = require("../config/cloudinary");
 
+const getImageUrl = (file) => {
+  const url = file?.secure_url || file?.path || file?.url || "";
+  return url.replace(/^http:\/\//i, "https://");
+};
+
+const getPublicId = (file) => file?.public_id || file?.filename || file?.file_id || "";
+
+const normalizeMenuItemImage = (menuItem) => {
+  if (menuItem?.image) menuItem.image = menuItem.image.replace(/^http:\/\//i, "https://");
+  return menuItem;
+};
+
 // @desc    Get all menu items (with optional search & category filter)
 // @route   GET /api/menu-items
 // @access  Public
@@ -18,7 +30,7 @@ const getMenuItems = async (req, res, next) => {
     }
 
     const menuItems = await MenuItem.find(filter).sort({ createdAt: -1 });
-    res.json(menuItems);
+    res.json(menuItems.map(normalizeMenuItemImage));
   } catch (error) {
     next(error);
   }
@@ -35,7 +47,7 @@ const getMenuItemById = async (req, res, next) => {
       return res.status(404).json({ message: "Menu item not found" });
     }
 
-    res.json(menuItem);
+    res.json(normalizeMenuItemImage(menuItem));
   } catch (error) {
     next(error);
   }
@@ -58,11 +70,11 @@ const createMenuItem = async (req, res, next) => {
       category,
       price,
       availability: availability !== undefined ? availability : true,
-      image: req.file ? req.file.path : "",
-      imagePublicId: req.file ? req.file.filename : "",
+      image: getImageUrl(req.file),
+      imagePublicId: getPublicId(req.file),
     });
 
-    res.status(201).json(menuItem);
+    res.status(201).json(normalizeMenuItemImage(menuItem));
   } catch (error) {
     next(error);
   }
@@ -92,12 +104,12 @@ const updateMenuItem = async (req, res, next) => {
       if (menuItem.imagePublicId) {
         await cloudinary.uploader.destroy(menuItem.imagePublicId).catch(() => {});
       }
-      menuItem.image = req.file.path;
-      menuItem.imagePublicId = req.file.filename;
+      menuItem.image = getImageUrl(req.file);
+      menuItem.imagePublicId = getPublicId(req.file);
     }
 
     const updatedMenuItem = await menuItem.save();
-    res.json(updatedMenuItem);
+    res.json(normalizeMenuItemImage(updatedMenuItem));
   } catch (error) {
     next(error);
   }
