@@ -3,6 +3,7 @@ const Cart = require("../models/Cart");
 const Order = require("../models/Order");
 const MenuItem = require("../models/MenuItem");
 const User = require("../models/User");
+const { createAdminNotification } = require("../services/adminNotificationService");
 
 let Razorpay;
 try {
@@ -38,6 +39,13 @@ const createOrder = async (req, res, next) => {
     const totalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const order = await Order.create({ user: req.user._id, deliveryAddress, items, totalAmount });
     await cart.deleteOne();
+    await createAdminNotification({
+      type: "NEW_ORDER",
+      title: "New customer order",
+      message: `${req.user.name || "A customer"} placed a new order.`,
+      relatedId: order._id,
+      relatedType: "Order",
+    });
     res.status(201).json(await order.populate("user", "name email"));
   } catch (error) {
     next(error);
@@ -103,6 +111,45 @@ const verifyPayment = async (req, res, next) => {
   }
 };
 
+const canCancelOrder = (status) => ["Pending", "Confirmed", "Preparing"].includes(status);
+
+const getOrderById = async (req, res, next) => {
+  try {
+    const order = await Order.findOne({ _id: req.params.id, user: req.user._id });
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    res.json(order);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getTrackOrder = async (req, res, next) => {
+  try {
+    const order = await Order.findOne({ _id: req.params.id, user: req.user._id }).select("_id orderStatus totalAmount items createdAt paymentStatus");
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    res.json(order);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const cancelOrder = async (req, res, next) => {
+  try {
+    const order = await Order.findOne({ _id: req.params.id, user: req.user._id });
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    if (!canCancelOrder(order.orderStatus)) {
+      return res.status(400).json({ message: "This order cannot be cancelled in its current status." });
+    }
+
+    order.orderStatus = "Cancelled";
+    await order.save();
+    res.json({ message: `Your order #${order._id} has been cancelled.`, order });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getOrderStats = async () => {
   const [totalOrders, revenue, pendingOrders, completedOrders] = await Promise.all([
     Order.countDocuments(),
@@ -113,4 +160,4 @@ const getOrderStats = async () => {
   return { totalOrders, totalSales: revenue[0]?.value || 0, pendingOrders, completedOrders };
 };
 
-module.exports = { createOrder, getMyOrders, getOrders, updateOrderStatus, createPayment, verifyPayment, getOrderStats };
+module.exports = { createOrder, getMyOrders, getOrders, getOrderById, getTrackOrder, cancelOrder, updateOrderStatus, createPayment, verifyPayment, getOrderStats, canCancelOrder };

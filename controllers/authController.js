@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const { createAdminNotification } = require("../services/adminNotificationService");
 
 // Generate JWT
 const generateToken = (id) => {
@@ -33,6 +34,14 @@ const registerUser = async (req, res, next) => {
       email,
       password,
       role: "User", // enforced regardless of request body
+    });
+
+    await createAdminNotification({
+      type: "NEW_CUSTOMER",
+      title: "New customer registered",
+      message: `${user.name} created a customer account.`,
+      relatedId: user._id,
+      relatedType: "User",
     });
 
     res.status(201).json({
